@@ -1,0 +1,1414 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Le Dobble de la famille</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700;9..144,900&family=Space+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #16302E;
+    --bg-deep: #0E211F;
+    --paper: #F6EFE2;
+    --ink: #1B2523;
+    --ink-soft: #4A5C58;
+    --gold: #E8A94D;
+    --coral: #E2604A;
+    --sage: #7FA396;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background: var(--bg);
+    background-image: radial-gradient(circle at 20% 10%, rgba(246,239,226,0.05), transparent 40%);
+    color: var(--paper);
+    font-family:'Space Grotesk', sans-serif;
+    min-height:100vh;
+  }
+  .app{ max-width:980px; margin:0 auto; padding:48px 24px 100px; }
+  header{ text-align:center; margin-bottom:36px; }
+  header h1{
+    font-family:'Fraunces', serif;
+    font-weight:900;
+    font-size:clamp(2rem, 5vw, 3.2rem);
+    margin:0 0 10px;
+    letter-spacing:-0.01em;
+  }
+  header h1 span{ color: var(--gold); }
+  header p{
+    color: var(--sage);
+    max-width:520px;
+    margin:0 auto;
+    line-height:1.5;
+    font-size:0.98rem;
+  }
+  .steps{ display:flex; justify-content:center; gap:10px; margin:32px 0 8px; }
+  .project-bar{ display:flex; align-items:center; justify-content:center; gap:10px; flex-wrap:wrap; margin:10px 0 4px; }
+  #projectStatus{ font-size:0.85rem; color:var(--sage); }
+  .step-dot{
+    width:34px; height:34px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    font-family:'Fraunces', serif; font-weight:700;
+    background: rgba(246,239,226,0.08);
+    color: var(--sage);
+    border:1.5px solid rgba(246,239,226,0.15);
+    transition: all .2s ease;
+  }
+  .step-dot.active{ background: var(--gold); color: var(--bg-deep); border-color: var(--gold); }
+  .panel{ display:none; animation: rise .35s ease; }
+  .panel.active{ display:block; }
+  @keyframes rise{ from{ opacity:0; transform:translateY(8px);} to{opacity:1; transform:none;} }
+
+  .panel h2{
+    font-family:'Fraunces', serif; font-weight:700; font-size:1.5rem;
+    margin:28px 0 6px;
+  }
+  .panel > p.lead{ color:var(--sage); margin:0 0 22px; line-height:1.5; max-width:640px; }
+
+  .upload-bar{ display:flex; align-items:center; gap:16px; flex-wrap:wrap; margin-bottom:14px; }
+  button{
+    font-family:'Space Grotesk', sans-serif; font-weight:600; font-size:0.92rem;
+    border:none; border-radius:8px; padding:12px 20px; cursor:pointer;
+    transition: transform .12s ease, opacity .12s ease;
+  }
+  button:active{ transform: scale(0.97); }
+  button:disabled{ opacity:0.35; cursor:not-allowed; }
+  .btn-primary{ background: var(--gold); color: var(--bg-deep); }
+  .btn-primary:hover:not(:disabled){ opacity:0.9; }
+  .btn-ghost{ background: rgba(246,239,226,0.08); color: var(--paper); border:1px solid rgba(246,239,226,0.2); }
+  .btn-ghost:hover:not(:disabled){ background: rgba(246,239,226,0.14); }
+  .btn-coral{ background: var(--coral); color: var(--paper); }
+
+  #counter{ font-weight:600; color:var(--gold); }
+  .tier-info{
+    font-size:0.9rem; color: var(--paper);
+    background: rgba(246,239,226,0.06);
+    border-left:3px solid var(--gold);
+    padding:10px 14px; border-radius:4px; margin-bottom:22px;
+  }
+
+  .slots{
+    display:grid; grid-template-columns: repeat(auto-fill, minmax(64px,1fr));
+    gap:8px; background: rgba(0,0,0,0.15); padding:16px; border-radius:12px;
+    max-height:420px; overflow-y:auto;
+  }
+  .slot{
+    aspect-ratio:1; border-radius:50%; position:relative; cursor:pointer;
+    background: rgba(246,239,226,0.06);
+    border:1.5px dashed rgba(246,239,226,0.25);
+    display:flex; align-items:center; justify-content:center;
+    overflow:hidden; transition: border-color .15s ease;
+  }
+  .slot:hover{ border-color: var(--gold); }
+  .slot img{ width:100%; height:100%; object-fit:cover; }
+  .slot .num{ font-size:0.7rem; color: var(--sage); font-weight:600; }
+  .slot.filled{ background: var(--paper); }
+  .slot.filled::after{
+    content:'🔍'; position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    background: rgba(20,20,20,0.45); color:#fff; opacity:0; font-size:1.3rem; transition:opacity .15s ease;
+  }
+  .slot.duplicate{ border-color: var(--coral); box-shadow: 0 0 0 2px var(--coral) inset; }
+  .slot.filled:hover::after{ opacity:1; }
+
+  .dup-warning{
+    font-size:0.9rem; color: var(--paper);
+    background: rgba(226,96,74,0.14);
+    border-left:3px solid var(--coral);
+    padding:10px 14px; border-radius:4px; margin-bottom:22px;
+  }
+  .dup-warning-text{ margin-bottom:8px; }
+  .dup-group{ display:flex; gap:6px; flex-wrap:wrap; margin-bottom:8px; }
+  .dup-group:last-child{ margin-bottom:0; }
+  .dup-thumb{
+    position:relative; width:44px; height:44px; border-radius:50%; overflow:hidden;
+    border:2px solid var(--coral); padding:0; cursor:pointer; background:none;
+  }
+  .dup-thumb img{ width:100%; height:100%; object-fit:cover; }
+  .dup-thumb span{
+    position:absolute; bottom:-2px; right:-2px; background:var(--coral); color:var(--paper);
+    font-size:0.55rem; padding:1px 3px; border-radius:6px; line-height:1;
+  }
+  .issues-list{ margin:0 0 10px; padding-left:18px; }
+  .issues-list li{ margin-bottom:3px; }
+  .check-row{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:14px; color:var(--sage); font-size:0.9rem; }
+  .check-row input[type=number]{
+    width:80px; padding:8px 10px; border-radius:8px; border:1px solid rgba(246,239,226,0.2);
+    background: rgba(246,239,226,0.08); color:var(--paper); font-family:'Space Grotesk', sans-serif;
+  }
+  #checkResult{ margin-bottom:20px; }
+  #checkResult .dup-warning{ margin-bottom:0; }
+  .check-thumbs{ display:flex; gap:8px; flex-wrap:wrap; margin-top:6px; }
+  .check-thumb{ width:56px; height:56px; border-radius:50%; overflow:hidden; border:2px solid var(--gold); }
+  .check-thumb img{ width:100%; height:100%; object-fit:cover; }
+
+  .modal-overlay{
+    position:fixed; inset:0; background: rgba(10,16,15,0.72);
+    display:none; align-items:center; justify-content:center; z-index:100; padding:24px;
+  }
+  .modal-box{
+    background: var(--paper); border-radius:16px; padding:28px;
+    display:flex; flex-direction:column; align-items:center; gap:14px;
+    max-width:340px; width:100%;
+  }
+  .modal-num{ color: var(--ink-soft); font-size:0.85rem; font-weight:600; }
+  .crop-stage{
+    width:280px; height:280px; max-width:70vw; max-height:70vw; aspect-ratio:1;
+    border-radius:50%; overflow:hidden; position:relative;
+    border:1.5px dashed rgba(27,37,35,0.35); box-shadow: 0 6px 18px rgba(0,0,0,0.2);
+    background: var(--paper); cursor:grab; touch-action:none;
+  }
+  .crop-stage:active{ cursor:grabbing; }
+  .crop-stage img{
+    position:absolute; left:50%; top:50%; max-width:none;
+    user-select:none; -webkit-user-drag:none; pointer-events:none;
+  }
+  .crop-hint{ color: var(--ink-soft); font-size:0.78rem; text-align:center; }
+  .zoom-row{ display:flex; align-items:center; gap:8px; width:100%; max-width:280px; color:var(--ink-soft); font-size:0.9rem; }
+  .zoom-row input[type=range]{ flex:1; }
+  .modal-actions{ display:flex; gap:10px; flex-wrap:wrap; justify-content:center; }
+  .modal-actions .btn-coral{ background: var(--coral); color: var(--paper); }
+
+  .footer-nav{ display:flex; justify-content:flex-end; gap:12px; margin-top:26px; }
+
+  .tier-options{ display:flex; flex-direction:column; gap:10px; max-width:520px; margin-bottom:26px; }
+  .tier-btn{
+    text-align:left; background: rgba(246,239,226,0.06); color:var(--paper);
+    border:1.5px solid rgba(246,239,226,0.15); border-radius:10px; padding:14px 16px;
+  }
+  .tier-btn.selected{ border-color: var(--gold); background: rgba(232,169,77,0.12); }
+  .tier-btn b{ color: var(--gold); }
+  .tier-btn small{ display:block; color:var(--sage); margin-top:2px; }
+
+  .preview-toolbar{ display:flex; gap:12px; flex-wrap:wrap; margin-bottom:24px; align-items:center; }
+  #deckSummary{ color:var(--sage); font-size:0.9rem; margin-left:auto; }
+
+  .cards-grid{
+    display:grid; grid-template-columns: repeat(auto-fill, minmax(190px,1fr));
+    gap:22px;
+  }
+  .dobble-card{
+    position:relative; aspect-ratio:1; border-radius:50%;
+    background: var(--paper); overflow:hidden;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.25);
+  }
+  .dobble-photo{
+    position:absolute; border-radius:50%; object-fit:cover;
+    box-shadow: 0 0 0 2px rgba(27,37,35,0.08) inset;
+  }
+
+  .verso-row{ display:flex; align-items:center; gap:10px; }
+  .verso-photo-thumb{ width:32px; height:32px; border-radius:50%; object-fit:cover; border:1.5px solid var(--gold); }
+  .verso-note{ color:var(--sage); font-size:0.85rem; max-width:520px; margin:8px 0 0; line-height:1.5; }
+
+  #printSheet{ display:none; }
+  .page-grid{
+    display:grid; grid-template-columns: repeat(2, 9cm);
+    justify-content:center; gap:0.4cm 0.8cm;
+  }
+  .dobble-card-back{
+    display:flex; align-items:center; justify-content:center;
+    background: var(--bg-deep);
+  }
+  .back-ring{ position:absolute; inset:9%; border:1.5pt dashed var(--gold); border-radius:50%; }
+  .back-label{
+    font-family:'Fraunces', serif; color: var(--gold); text-align:center;
+    font-size:0.95rem; font-weight:700; letter-spacing:0.05em; line-height:1.7;
+  }
+  .verso-page .page-grid{ transform: scaleX(-1); }
+  .verso-page .dobble-card-back{ transform: scaleX(-1); }
+
+  @media print{
+    body{ background:#fff; color:#000; }
+    .steps, .project-bar, header, #step1, #step2, .preview-toolbar, #cardsGrid{ display:none !important; }
+    .app{ max-width:none; padding:0; margin:0; }
+    #printSheet{ display:block; }
+    .print-page{ padding:0.5cm; }
+    .print-page:not(:last-child){ break-after: page; }
+    .dobble-card{ width:9cm; height:9cm; border:1.2pt dashed #333; box-shadow:none; break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>Le Dobble de <span>la famille</span></h1>
+  </header>
+
+  <div class="steps">
+    <div class="step-dot active" data-step="1">1</div>
+    <div class="step-dot" data-step="2">2</div>
+    <div class="step-dot" data-step="3">3</div>
+  </div>
+
+  <div class="project-bar">
+    <button class="btn-ghost" id="saveProjectBtn">Enregistrer le projet</button>
+    <button class="btn-ghost" id="openProjectBtn">Ouvrir un projet</button>
+    <input type="file" id="openProjectInput" accept=".json,application/json" hidden>
+    <span id="projectStatus"></span>
+  </div>
+
+  <section id="step1" class="panel active">
+    <h2>Réunis les photos</h2>
+    <p class="lead">Ajoute jusqu'à 57 photos — visages, animaux de la famille, lieux de vacances, objets fétiches... Chaque photo doit être unique.</p>
+    <div class="upload-bar">
+      <button class="btn-primary" id="bulkAddBtn">Ajouter des photos</button>
+      <input type="file" id="bulkInput" multiple accept="image/*" hidden>
+      <button class="btn-ghost" id="folderAddBtn">Importer un dossier</button>
+      <input type="file" id="folderInput" webkitdirectory directory multiple hidden>
+      <span id="counter">0 / 57 photos</span>
+      <button class="btn-ghost" id="resetBtn">Recommencer</button>
+    </div>
+    <div class="verso-row">
+      <input type="checkbox" id="smartCropCheckbox" checked>
+      <label for="smartCropCheckbox">Zoomer automatiquement sur le sujet le plus net de chaque photo</label>
+    </div>
+    <div class="tier-info" id="tierInfo"></div>
+    <div class="dup-warning" id="dupWarning" style="display:none;"></div>
+    <div class="dup-warning" id="issuesWarning" style="display:none;"></div>
+    <div class="slots" id="slotsGrid"></div>
+    <div class="footer-nav">
+      <button class="btn-primary" id="goStep2Btn" disabled>Suivant →</button>
+    </div>
+  </section>
+
+  <div class="modal-overlay" id="previewModal">
+    <div class="modal-box">
+      <span class="modal-num" id="previewNum"></span>
+      <div class="crop-stage" id="cropStage">
+        <img id="cropImg" src="" alt="" draggable="false">
+      </div>
+      <p class="crop-hint">Fais glisser la photo pour la repositionner, utilise le curseur pour zoomer.</p>
+      <div class="zoom-row">
+        <span>−</span>
+        <input type="range" id="zoomSlider" min="1" max="3" step="0.01" value="1">
+        <span>+</span>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-ghost" id="resetCropBtn">Réinitialiser</button>
+        <button class="btn-ghost" id="modalReplaceBtn">Remplacer</button>
+        <button class="btn-coral" id="modalDeleteBtn">Supprimer</button>
+        <button class="btn-ghost" id="modalCloseBtn">Fermer</button>
+      </div>
+    </div>
+  </div>
+
+  <section id="step2" class="panel">
+    <h2>Choisis le format</h2>
+    <p class="lead">Plus tu as de photos, plus le jeu est grand. Le format Classique reprend le vrai plan mathématique à 57 cartes — en mieux, puisqu'on garde les 57 cartes complètes au lieu des 55 du commerce (limitées par l'imprimeur d'origine).</p>
+    <div class="tier-options" id="tierOptions"></div>
+    <div class="footer-nav">
+      <button class="btn-ghost" id="backTo1Btn">← Retour</button>
+      <button class="btn-primary" id="generateBtn">Générer les cartes</button>
+    </div>
+  </section>
+
+  <section id="step3" class="panel">
+    <h2>Imprime et découpe</h2>
+    <p class="lead">Imprime sur du papier épais, découpe le long des pointillés. Règle de base : retourne une carte au centre, le premier joueur qui repère la photo commune avec sa propre carte la remporte.</p>
+    <div class="preview-toolbar">
+      <button class="btn-ghost" id="backTo1FromPreviewBtn">← Modifier les photos</button>
+      <button class="btn-ghost" id="regenBtn">Repositionner les photos</button>
+      <button class="btn-primary" id="printBtn">Imprimer</button>
+      <button class="btn-primary" id="pdfBtn">Télécharger le PDF</button>
+      <span id="deckSummary"></span>
+    </div>
+    <div class="verso-row">
+      <input type="checkbox" id="versoCheckbox">
+      <label for="versoCheckbox">Inclure un verso (pour impression recto-verso)</label>
+    </div>
+    <div class="verso-row">
+      <button class="btn-ghost" id="versoPhotoBtn">Ajouter une photo pour le dos</button>
+      <input type="file" id="versoPhotoInput" accept="image/*" hidden>
+      <span id="versoPhotoThumbWrap" style="display:none;"><img id="versoPhotoThumb" alt="" class="verso-photo-thumb"></span>
+      <button class="btn-ghost" id="versoPhotoRemoveBtn" style="display:none;">Retirer</button>
+    </div>
+    <p class="verso-note">Dans la boîte de dialogue d'impression, choisis l'option « recto-verso » puis « retourner sur les bords longs » — le verso est déjà aligné en conséquence.</p>
+    <div class="check-row">
+      <span>Vérifier deux cartes :</span>
+      <input type="number" id="checkCardA" min="1" placeholder="Carte n°">
+      <span>et</span>
+      <input type="number" id="checkCardB" min="1" placeholder="Carte n°">
+      <button class="btn-ghost" id="checkPairBtn">Vérifier</button>
+      <button class="btn-ghost" id="checkAllBtn">Vérifier tout le jeu</button>
+    </div>
+    <div id="checkResult"></div>
+    <div class="cards-grid" id="cardsGrid"></div>
+    <div id="printSheet"></div>
+  </section>
+</div>
+
+<script>
+// ---------- Data ----------
+const TOTAL_SLOTS = 57;
+const photos = new Array(TOTAL_SLOTS).fill(null);
+const photoSources = new Array(TOTAL_SLOTS).fill(null);
+const TIERS = [
+  {n:2, symbols:7,  perCard:3, label:'Mini'},
+  {n:3, symbols:13, perCard:4, label:'Petit'},
+  {n:5, symbols:31, perCard:6, label:'Confortable'},
+  {n:7, symbols:57, perCard:8, label:'Classique'},
+];
+let selectedTier = null;
+let regenSeed = 0;
+let versoPhoto = null;
+
+// ---------- Slot grid ----------
+const slotsGrid = document.getElementById('slotsGrid');
+for(let i=0;i<TOTAL_SLOTS;i++){
+  const el = document.createElement('div');
+  el.className = 'slot';
+  el.dataset.index = i;
+  el.innerHTML = `<span class="num">${i+1}</span>`;
+  slotsGrid.appendChild(el);
+}
+
+function renderSlot(i){
+  const el = slotsGrid.children[i];
+  if(photos[i]){
+    el.classList.add('filled');
+    el.innerHTML = `<img src="${photos[i]}" alt="">`;
+  } else {
+    el.classList.remove('filled');
+    el.innerHTML = `<span class="num">${i+1}</span>`;
+  }
+}
+
+// ---------- Smart subject detection (edge-energy heuristic, no external model) ----------
+function computeSaliencyCenter(img){
+  const AN = 48;
+  let aw, ah;
+  if(img.width > img.height){ aw = AN; ah = Math.max(1, Math.round(AN*img.height/img.width)); }
+  else { ah = AN; aw = Math.max(1, Math.round(AN*img.width/img.height)); }
+  const c = document.createElement('canvas');
+  c.width = aw; c.height = ah;
+  const actx = c.getContext('2d');
+  actx.fillStyle = '#F6EFE2';
+  actx.fillRect(0, 0, aw, ah);
+  actx.drawImage(img, 0, 0, aw, ah);
+  const data = actx.getImageData(0, 0, aw, ah).data;
+  const gray = new Float32Array(aw*ah);
+  for(let i=0;i<aw*ah;i++){
+    gray[i] = 0.299*data[i*4] + 0.587*data[i*4+1] + 0.114*data[i*4+2];
+  }
+  const energy = new Float32Array(aw*ah);
+  for(let y=1;y<ah-1;y++){
+    for(let x=1;x<aw-1;x++){
+      const idx = y*aw+x;
+      const gx = gray[idx+1]-gray[idx-1];
+      const gy = gray[idx+aw]-gray[idx-aw];
+      energy[idx] = Math.sqrt(gx*gx+gy*gy);
+    }
+  }
+  let sumW=0, sumX=0, sumY=0;
+  for(let y=0;y<ah;y++){
+    for(let x=0;x<aw;x++){
+      const w = energy[y*aw+x];
+      sumW += w; sumX += w*x; sumY += w*y;
+    }
+  }
+  if(sumW <= 0) return { cx:0.5, cy:0.5 };
+  return { cx: (sumX/sumW)/aw, cy: (sumY/sumW)/ah };
+}
+
+function getSmartCropRect(img, useSmart){
+  let cx = 0.5, cy = 0.5, zoom = 1;
+  if(useSmart){
+    const c = computeSaliencyCenter(img);
+    cx = c.cx; cy = c.cy; zoom = 0.88; // mild zoom-in toward the detected subject
+  }
+  const shortSide = Math.min(img.width, img.height);
+  const size = shortSide*zoom;
+  let left = cx*img.width - size/2;
+  let top = cy*img.height - size/2;
+  left = Math.max(0, Math.min(left, img.width-size));
+  top = Math.max(0, Math.min(top, img.height-size));
+  return { left, top, size };
+}
+
+// ---------- Transparency detection ----------
+function hasAlphaChannel(img){
+  const AN = 32;
+  let aw, ah;
+  if(img.width > img.height){ aw = AN; ah = Math.max(1, Math.round(AN*img.height/img.width)); }
+  else { ah = AN; aw = Math.max(1, Math.round(AN*img.width/img.height)); }
+  const c = document.createElement('canvas');
+  c.width = aw; c.height = ah;
+  const ctx = c.getContext('2d');
+  ctx.drawImage(img, 0, 0, aw, ah);
+  const data = ctx.getImageData(0, 0, aw, ah).data;
+  for(let i=3;i<data.length;i+=4){
+    if(data[i] < 250) return true;
+  }
+  return false;
+}
+
+// ---------- Image processing: smart-crop + resize, plus a larger working copy for later repositioning ----------
+function processImage(file, maxSourceDim=2000, finalDim=1400, quality=0.92){
+  return new Promise((resolve, reject)=>{
+    const reader = new FileReader();
+    reader.onload = ev=>{
+      const img = new Image();
+      img.onload = ()=>{
+        try{
+          if(!img.naturalWidth || !img.naturalHeight){
+            reject(new Error(`Format non pris en charge : ${file.name}`));
+            return;
+          }
+          const transparent = hasAlphaChannel(img);
+          const mime = transparent ? 'image/png' : 'image/jpeg';
+
+          const useSmart = document.getElementById('smartCropCheckbox').checked;
+          const rect = getSmartCropRect(img, useSmart);
+          const finalCanvas = document.createElement('canvas');
+          finalCanvas.width = finalDim; finalCanvas.height = finalDim;
+          const finalCtx = finalCanvas.getContext('2d');
+          if(!transparent){
+            finalCtx.fillStyle = '#F6EFE2';
+            finalCtx.fillRect(0, 0, finalDim, finalDim);
+          }
+          finalCtx.drawImage(img, rect.left, rect.top, rect.size, rect.size, 0, 0, finalDim, finalDim);
+          const finalDataUrl = finalCanvas.toDataURL(mime, quality);
+
+          let sw = img.width, sh = img.height;
+          if(sw > sh){ if(sw > maxSourceDim){ sh = Math.round(sh*maxSourceDim/sw); sw = maxSourceDim; } }
+          else { if(sh > maxSourceDim){ sw = Math.round(sw*maxSourceDim/sh); sh = maxSourceDim; } }
+          const srcCanvas = document.createElement('canvas');
+          srcCanvas.width = sw; srcCanvas.height = sh;
+          const srcCtx = srcCanvas.getContext('2d');
+          if(!transparent){
+            srcCtx.fillStyle = '#F6EFE2';
+            srcCtx.fillRect(0, 0, sw, sh);
+          }
+          srcCtx.drawImage(img, 0, 0, sw, sh);
+          const sourceDataUrl = srcCanvas.toDataURL(mime, quality);
+
+          resolve({ finalDataUrl, sourceDataUrl });
+        }catch(err){ reject(err); }
+      };
+      img.onerror = () => reject(new Error(`Format non pris en charge : ${file.name}`));
+      img.src = ev.target.result;
+    };
+    reader.onerror = () => reject(new Error(`Fichier illisible : ${file.name}`));
+    reader.readAsDataURL(file);
+  });
+}
+
+// ---------- Persistent storage (per-photo, so a reload doesn't lose progress) ----------
+async function savePhotoToStorage(idx, dataUrl){
+  if(!window.storage) return;
+  try{ await window.storage.set(`photo:${idx}`, dataUrl, false); }
+  catch(err){ console.error('Sauvegarde impossible pour la photo', idx, err); reportIssue(`Case ${idx+1} — sauvegarde impossible (photo trop volumineuse) ; elle disparaîtra si tu recharges la page.`); }
+}
+async function saveSourceToStorage(idx, dataUrl){
+  if(!window.storage) return;
+  try{ await window.storage.set(`src:${idx}`, dataUrl, false); }
+  catch(err){ console.error('Sauvegarde impossible pour la source', idx, err); }
+}
+async function deletePhotoFromStorage(idx){
+  if(!window.storage) return;
+  try{ await window.storage.delete(`photo:${idx}`, false); }
+  catch(err){ console.error('Suppression impossible pour la photo', idx, err); }
+  try{ await window.storage.delete(`src:${idx}`, false); }
+  catch(err){ console.error('Suppression impossible pour la source', idx, err); }
+}
+async function saveVersoPhotoToStorage(dataUrl){
+  if(!window.storage) return;
+  try{ await window.storage.set('versoPhoto', dataUrl, false); }
+  catch(err){ console.error('Sauvegarde impossible pour la photo du dos', err); reportIssue(`Photo du dos — sauvegarde impossible (fichier trop volumineux) ; elle disparaîtra si tu recharges la page.`); }
+}
+async function deleteVersoPhotoFromStorage(){
+  if(!window.storage) return;
+  try{ await window.storage.delete('versoPhoto', false); }
+  catch(err){ console.error('Suppression impossible pour la photo du dos', err); }
+}
+async function restoreFromStorage(){
+  if(!window.storage) return;
+  try{
+    const listResult = await window.storage.list('photo:', false);
+    if(listResult && listResult.keys){
+      for(const key of listResult.keys){
+        try{
+          const res = await window.storage.get(key, false);
+          if(res && typeof res.value === 'string'){
+            const idx = parseInt(key.split(':')[1], 10);
+            if(Number.isInteger(idx) && idx>=0 && idx<TOTAL_SLOTS) photos[idx] = res.value;
+          }
+        }catch(err){ console.error('Erreur restauration', key, err); }
+      }
+    }
+    const srcListResult = await window.storage.list('src:', false);
+    if(srcListResult && srcListResult.keys){
+      for(const key of srcListResult.keys){
+        try{
+          const res = await window.storage.get(key, false);
+          if(res && typeof res.value === 'string'){
+            const idx = parseInt(key.split(':')[1], 10);
+            if(Number.isInteger(idx) && idx>=0 && idx<TOTAL_SLOTS) photoSources[idx] = res.value;
+          }
+        }catch(err){ console.error('Erreur restauration source', key, err); }
+      }
+    }
+    try{
+      const versoRes = await window.storage.get('versoPhoto', false);
+      if(versoRes && typeof versoRes.value === 'string'){
+        versoPhoto = versoRes.value;
+        updateVersoPhotoUI();
+      }
+    }catch(err){ /* no verso photo saved yet */ }
+    for(let i=0;i<TOTAL_SLOTS;i++) renderSlot(i);
+    updateCounter();
+  }catch(err){ console.error('Restauration impossible', err); }
+}
+
+// ---------- Processing / storage issue reporting ----------
+let issues = [];
+function escapeHtml(s){
+  return s.replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+}
+function reportIssue(msg){
+  issues.push(msg);
+  renderIssues();
+}
+function renderIssues(){
+  const el = document.getElementById('issuesWarning');
+  if(issues.length===0){ el.style.display='none'; el.innerHTML=''; return; }
+  el.style.display='block';
+  el.innerHTML = `<div class="dup-warning-text">⚠ ${issues.length} photo(s) ont posé problème :</div>` +
+    `<ul class="issues-list">${issues.map(m=>`<li>${escapeHtml(m)}</li>`).join('')}</ul>` +
+    `<button class="btn-ghost" id="dismissIssuesBtn">Ignorer</button>`;
+  document.getElementById('dismissIssuesBtn').addEventListener('click', ()=>{ issues=[]; renderIssues(); });
+}
+
+// ---------- Duplicate detection ----------
+function updateDuplicateWarning(){
+  document.querySelectorAll('.slot.duplicate').forEach(s=>s.classList.remove('duplicate'));
+  const seen = {};
+  photos.forEach((p,i)=>{ if(p) (seen[p] = seen[p] || []).push(i); });
+  const dupGroups = Object.values(seen).filter(arr=>arr.length>1);
+  const el = document.getElementById('dupWarning');
+  if(dupGroups.length===0){ el.style.display='none'; el.innerHTML=''; return; }
+  dupGroups.forEach(group=> group.forEach(idx=> slotsGrid.children[idx].classList.add('duplicate')));
+  el.style.display='block';
+  el.innerHTML = `<div class="dup-warning-text">⚠ Photos identiques détectées — clique sur une vignette pour l'agrandir et vérifier :</div>` +
+    dupGroups.map(group => `<div class="dup-group">${
+      group.map(idx => `<button class="dup-thumb" data-idx="${idx}" title="Photo ${idx+1}"><img src="${photos[idx]}" alt=""><span>${idx+1}</span></button>`).join('')
+    }</div>`).join('');
+}
+document.getElementById('dupWarning').addEventListener('click', e=>{
+  const btn = e.target.closest('.dup-thumb');
+  if(!btn) return;
+  openEditor(+btn.dataset.idx);
+});
+
+const singleInput = document.createElement('input');
+singleInput.type='file'; singleInput.accept='image/*'; singleInput.hidden=true;
+document.body.appendChild(singleInput);
+let currentSlotIndex = null;
+let previewIndex = null;
+
+// ---------- Interactive crop editor (drag to reposition, slider to zoom) ----------
+const cropStageEl = document.getElementById('cropStage');
+const cropImgEl = document.getElementById('cropImg');
+const zoomSliderEl = document.getElementById('zoomSlider');
+let cropState = null; // {iw, ih, baseScale, m, tx, ty}
+
+function stageSize(){ return cropStageEl.getBoundingClientRect().width; }
+
+function applyCropTransform(){
+  if(!cropState) return;
+  const { iw, ih, baseScale, m, tx, ty } = cropState;
+  const s = baseScale*m;
+  cropImgEl.style.width = (iw*s)+'px';
+  cropImgEl.style.height = (ih*s)+'px';
+  cropImgEl.style.transform = `translate(-50%,-50%) translate(${tx}px, ${ty}px)`;
+}
+function clampCropState(){
+  const V = stageSize();
+  const { iw, ih, baseScale, m } = cropState;
+  const s = baseScale*m;
+  const maxTx = Math.max(0, (iw*s - V)/2);
+  const maxTy = Math.max(0, (ih*s - V)/2);
+  cropState.tx = Math.max(-maxTx, Math.min(maxTx, cropState.tx));
+  cropState.ty = Math.max(-maxTy, Math.min(maxTy, cropState.ty));
+}
+function commitCrop(){
+  if(previewIndex === null || !cropState) return;
+  const V = stageSize();
+  const { iw, ih, baseScale, m, tx, ty } = cropState;
+  const s = baseScale*m;
+  const imgLeft = V/2 + tx - (iw*s)/2;
+  const imgTop = V/2 + ty - (ih*s)/2;
+  const cropLeft = -imgLeft/s;
+  const cropTop = -imgTop/s;
+  const cropSize = V/s;
+  const finalDim = 1400;
+  const mime = (photoSources[previewIndex]||'').startsWith('data:image/png') ? 'image/png' : 'image/jpeg';
+  const canvas = document.createElement('canvas');
+  canvas.width = finalDim; canvas.height = finalDim;
+  const ctx = canvas.getContext('2d');
+  if(mime !== 'image/png'){
+    ctx.fillStyle = '#F6EFE2';
+    ctx.fillRect(0, 0, finalDim, finalDim);
+  }
+  ctx.drawImage(cropImgEl, cropLeft, cropTop, cropSize, cropSize, 0, 0, finalDim, finalDim);
+  const dataUrl = canvas.toDataURL(mime, 0.92);
+  const idx = previewIndex;
+  photos[idx] = dataUrl;
+  renderSlot(idx);
+  updateDuplicateWarning();
+  savePhotoToStorage(idx, dataUrl);
+}
+
+let dragging = false, dragStart = {x:0,y:0}, startTxTy = {tx:0,ty:0};
+cropStageEl.addEventListener('pointerdown', e=>{
+  if(!cropState) return;
+  dragging = true;
+  cropStageEl.setPointerCapture(e.pointerId);
+  dragStart = { x:e.clientX, y:e.clientY };
+  startTxTy = { tx:cropState.tx, ty:cropState.ty };
+});
+cropStageEl.addEventListener('pointermove', e=>{
+  if(!dragging || !cropState) return;
+  cropState.tx = startTxTy.tx + (e.clientX - dragStart.x);
+  cropState.ty = startTxTy.ty + (e.clientY - dragStart.y);
+  clampCropState();
+  applyCropTransform();
+});
+function endDrag(){
+  if(dragging){ dragging = false; commitCrop(); }
+}
+cropStageEl.addEventListener('pointerup', endDrag);
+cropStageEl.addEventListener('pointerleave', endDrag);
+cropStageEl.addEventListener('pointercancel', endDrag);
+
+zoomSliderEl.addEventListener('input', e=>{
+  if(!cropState) return;
+  cropState.m = parseFloat(e.target.value);
+  clampCropState();
+  applyCropTransform();
+});
+zoomSliderEl.addEventListener('change', commitCrop);
+
+document.getElementById('resetCropBtn').addEventListener('click', ()=>{
+  if(!cropState) return;
+  cropState.m = 1; cropState.tx = 0; cropState.ty = 0;
+  zoomSliderEl.value = 1;
+  applyCropTransform();
+  commitCrop();
+});
+
+function openEditor(idx){
+  if(!photos[idx]) return;
+  previewIndex = idx;
+  document.getElementById('previewNum').textContent = `Photo ${idx+1} / ${TOTAL_SLOTS}`;
+  zoomSliderEl.value = 1;
+  cropImgEl.onload = ()=>{
+    const iw = cropImgEl.naturalWidth, ih = cropImgEl.naturalHeight;
+    const baseScale = stageSize() / Math.min(iw, ih);
+    cropState = { iw, ih, baseScale, m:1, tx:0, ty:0 };
+    applyCropTransform();
+  };
+  cropImgEl.src = photoSources[idx] || photos[idx];
+  document.getElementById('previewModal').style.display = 'flex';
+}
+function closePreview(){
+  document.getElementById('previewModal').style.display = 'none';
+  previewIndex = null;
+  cropState = null;
+}
+document.getElementById('modalCloseBtn').addEventListener('click', closePreview);
+document.getElementById('previewModal').addEventListener('click', e=>{
+  if(e.target.id === 'previewModal') closePreview();
+});
+document.addEventListener('keydown', e=>{ if(e.key === 'Escape') closePreview(); });
+document.getElementById('modalDeleteBtn').addEventListener('click', ()=>{
+  if(previewIndex === null) return;
+  const idx = previewIndex;
+  photos[idx] = null;
+  photoSources[idx] = null;
+  renderSlot(idx);
+  updateCounter();
+  deletePhotoFromStorage(idx);
+  closePreview();
+});
+document.getElementById('modalReplaceBtn').addEventListener('click', ()=>{
+  if(previewIndex === null) return;
+  currentSlotIndex = previewIndex;
+  closePreview();
+  singleInput.click();
+});
+
+slotsGrid.addEventListener('click', e=>{
+  const slot = e.target.closest('.slot');
+  if(!slot) return;
+  const idx = +slot.dataset.index;
+  if(photos[idx]){
+    openEditor(idx);
+  } else {
+    currentSlotIndex = idx;
+    singleInput.click();
+  }
+});
+
+singleInput.addEventListener('change', async e=>{
+  const file = e.target.files[0];
+  if(file && currentSlotIndex !== null){
+    try{
+      const { finalDataUrl, sourceDataUrl } = await processImage(file);
+      photos[currentSlotIndex] = finalDataUrl;
+      photoSources[currentSlotIndex] = sourceDataUrl;
+      renderSlot(currentSlotIndex);
+      updateCounter();
+      savePhotoToStorage(currentSlotIndex, finalDataUrl);
+      saveSourceToStorage(currentSlotIndex, sourceDataUrl);
+    }catch(err){ reportIssue(`Case ${currentSlotIndex+1} — ${err.message}`); }
+  }
+  singleInput.value='';
+});
+
+function setBulkBusy(busy){
+  const b1 = document.getElementById('bulkAddBtn'), b2 = document.getElementById('folderAddBtn');
+  b1.disabled = busy; b2.disabled = busy;
+  b1.textContent = busy ? 'Traitement…' : 'Ajouter des photos';
+  b2.textContent = busy ? 'Traitement…' : 'Importer un dossier';
+}
+
+async function handleBulkFiles(fileList){
+  const files = Array.from(fileList).filter(f=>f.type.startsWith('image/'));
+  if(files.length===0) return;
+  const emptyIndices = photos.map((p,i)=>p===null?i:null).filter(v=>v!==null);
+  setBulkBusy(true);
+  for(let i=0;i<files.length && i<emptyIndices.length;i++){
+    const idx = emptyIndices[i];
+    try{
+      const { finalDataUrl, sourceDataUrl } = await processImage(files[i]);
+      photos[idx] = finalDataUrl;
+      photoSources[idx] = sourceDataUrl;
+      renderSlot(idx);
+      updateCounter();
+      savePhotoToStorage(idx, finalDataUrl);
+      saveSourceToStorage(idx, sourceDataUrl);
+    }catch(err){ reportIssue(`Case ${idx+1} — ${err.message}`); }
+  }
+  setBulkBusy(false);
+}
+
+document.getElementById('bulkAddBtn').addEventListener('click', ()=> document.getElementById('bulkInput').click());
+document.getElementById('bulkInput').addEventListener('change', e=>{
+  handleBulkFiles(e.target.files);
+  e.target.value='';
+});
+document.getElementById('folderAddBtn').addEventListener('click', ()=> document.getElementById('folderInput').click());
+document.getElementById('folderInput').addEventListener('change', e=>{
+  handleBulkFiles(e.target.files);
+  e.target.value='';
+});
+slotsGrid.addEventListener('dragover', e=> e.preventDefault());
+slotsGrid.addEventListener('drop', e=>{
+  e.preventDefault();
+  handleBulkFiles(e.dataTransfer.files);
+});
+let resetConfirmTimeout = null;
+document.getElementById('resetBtn').addEventListener('click', ()=>{
+  const btn = document.getElementById('resetBtn');
+  if(btn.dataset.confirming === 'true'){
+    clearTimeout(resetConfirmTimeout);
+    btn.dataset.confirming = 'false';
+    btn.textContent = 'Recommencer';
+    btn.classList.remove('btn-coral');
+    for(let i=0;i<TOTAL_SLOTS;i++){
+      if(photos[i]){
+        photos[i] = null;
+        photoSources[i] = null;
+        renderSlot(i);
+        deletePhotoFromStorage(i);
+      }
+    }
+    updateCounter();
+  } else {
+    btn.dataset.confirming = 'true';
+    btn.textContent = 'Cliquer pour confirmer';
+    btn.classList.add('btn-coral');
+    resetConfirmTimeout = setTimeout(()=>{
+      btn.dataset.confirming = 'false';
+      btn.textContent = 'Recommencer';
+      btn.classList.remove('btn-coral');
+    }, 4000);
+  }
+});
+
+function bestTier(count){
+  let best = null;
+  for(const t of TIERS){ if(count >= t.symbols) best = t; }
+  return best;
+}
+
+function updateCounter(){
+  const count = photos.filter(Boolean).length;
+  document.getElementById('counter').textContent = `${count} / ${TOTAL_SLOTS} photos`;
+  const t = bestTier(count);
+  const el = document.getElementById('tierInfo');
+  if(!t){
+    el.textContent = `Encore ${7-count} photo(s) pour débloquer le plus petit format (Mini, 7 cartes).`;
+  } else {
+    const next = TIERS[TIERS.indexOf(t)+1];
+    let msg = `Format disponible : ${t.label} — ${t.symbols} cartes de ${t.perCard} photos.`;
+    if(next) msg += ` Ajoute ${next.symbols-count} photo(s) de plus pour débloquer ${next.label} (${next.symbols} cartes).`;
+    el.textContent = msg;
+  }
+  document.getElementById('goStep2Btn').disabled = count < 7;
+  updateDuplicateWarning();
+}
+updateCounter();
+restoreFromStorage();
+
+// ---------- Step navigation ----------
+function showStep(n){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.getElementById('step'+n).classList.add('active');
+  document.querySelectorAll('.step-dot').forEach(d=>{
+    d.classList.toggle('active', +d.dataset.step === n);
+  });
+}
+document.getElementById('goStep2Btn').addEventListener('click', ()=>{ renderTierOptions(); showStep(2); });
+document.getElementById('backTo1Btn').addEventListener('click', ()=> showStep(1));
+document.getElementById('backTo1FromPreviewBtn').addEventListener('click', ()=> showStep(1));
+
+// ---------- Tier selection ----------
+function renderTierOptions(){
+  const count = photos.filter(Boolean).length;
+  const container = document.getElementById('tierOptions');
+  container.innerHTML='';
+  TIERS.forEach(t=>{
+    const btn = document.createElement('button');
+    btn.className = 'tier-btn';
+    btn.disabled = t.symbols > count;
+    btn.innerHTML = `<b>${t.label}</b> — ${t.symbols} cartes de ${t.perCard} photos
+      <small>${t.symbols > count ? `Il manque ${t.symbols-count} photo(s)` : 'Disponible'}</small>`;
+    btn.addEventListener('click', ()=>{ selectedTier = t; highlightTier(); });
+    container.appendChild(btn);
+  });
+  selectedTier = bestTier(count);
+  highlightTier();
+}
+function highlightTier(){
+  document.querySelectorAll('.tier-btn').forEach((b,i)=>{
+    b.classList.toggle('selected', TIERS[i] === selectedTier);
+  });
+}
+
+// ---------- Dobble deck generation (finite projective plane, n prime) ----------
+function generateDeck(n){
+  const cards = [];
+  cards.push(Array.from({length:n+1}, (_,i)=>i));
+  for(let i=0;i<n;i++){
+    const card=[0];
+    for(let j=0;j<n;j++) card.push(n+1+n*i+j);
+    cards.push(card);
+  }
+  for(let i=0;i<n;i++){
+    for(let j=0;j<n;j++){
+      const card=[i+1];
+      for(let k=0;k<n;k++){
+        card.push(n+1 + n*k + ((i*k+j)%n));
+      }
+      cards.push(card);
+    }
+  }
+  return cards;
+}
+
+// ---------- Seeded circle packing for photo layout inside each card (growth simulation) ----------
+function mulberry32(seed){
+  return function(){
+    seed |= 0; seed = (seed + 0x6D2B79F5) | 0;
+    let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+    t = (t + Math.imul(t ^ t >>> 7, 61 | t)) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+function packCircles(count, seed){
+  const rand = mulberry32(seed);
+  const startR = 0.09, maxR = 0.62, gap = 0.012, growStep = 0.003, nudgeStep = 0.01, pullStep = 0.01;
+  const goldenAngle = Math.PI * (3 - Math.sqrt(5));
+  const baseRotation = rand()*Math.PI*2;
+
+  // Seed centers on a sunflower spiral, kept close to the middle so there's room to grow outward
+  const circles = [];
+  for(let i=0;i<count;i++){
+    const r0 = Math.sqrt((i+0.5)/count) * 0.45;
+    const theta = (i+0.5)*goldenAngle + baseRotation;
+    circles.push({
+      x: Math.cos(theta)*r0,
+      y: Math.sin(theta)*r0,
+      r: startR,
+      rot: Math.round(rand()*50-25),
+      speed: 0.8 + rand()*0.5
+    });
+  }
+
+  // Each circle tries to grow a little every step; if blocked, it nudges away from
+  // whatever is blocking it and tries again next step — so stuck circles migrate
+  // toward free space instead of freezing in place.
+  const order = circles.map((_,i)=>i);
+  for(let iter=0; iter<500; iter++){
+    for(let i=order.length-1;i>0;i--){
+      const j = Math.floor(rand()*(i+1));
+      const tmp = order[i]; order[i] = order[j]; order[j] = tmp;
+    }
+    for(const idx of order){
+      const c = circles[idx];
+      if(c.r >= maxR) continue;
+      const newR = c.r + growStep*c.speed;
+      const centerDist = Math.sqrt(c.x*c.x + c.y*c.y);
+      const boundaryOK = centerDist + newR <= 1;
+      let blocker = null, worstOverlap = 0;
+      for(let k=0;k<circles.length;k++){
+        if(k===idx) continue;
+        const o = circles[k];
+        const dx=o.x-c.x, dy=o.y-c.y;
+        const d = Math.sqrt(dx*dx+dy*dy);
+        const req = newR+o.r+gap;
+        if(d < req){
+          const overlap = req-d;
+          if(overlap>worstOverlap){ worstOverlap=overlap; blocker=o; }
+        }
+      }
+      if(boundaryOK && !blocker){
+        c.r = newR;
+      } else {
+        if(blocker){
+          const dx=c.x-blocker.x, dy=c.y-blocker.y;
+          const d = Math.sqrt(dx*dx+dy*dy) || 1e-6;
+          c.x += (dx/d)*nudgeStep;
+          c.y += (dy/d)*nudgeStep;
+        }
+        if(!boundaryOK){
+          const d = Math.sqrt(c.x*c.x+c.y*c.y) || 1e-6;
+          c.x -= (c.x/d)*pullStep;
+          c.y -= (c.y/d)*pullStep;
+        }
+      }
+    }
+  }
+
+  return circles;
+}
+
+// ---------- Card element builders ----------
+function shuffledSlotOrder(count, seed){
+  const rand = mulberry32(seed);
+  const order = Array.from({length:count}, (_,i)=>i);
+  for(let i=order.length-1;i>0;i--){
+    const j = Math.floor(rand()*(i+1));
+    const tmp = order[i]; order[i] = order[j]; order[j] = tmp;
+  }
+  return order;
+}
+function buildFrontCardEl(card, cardIdx, usedPhotos){
+  const cardEl = document.createElement('div');
+  cardEl.className='dobble-card';
+  const packed = packCircles(card.length, cardIdx*97 + regenSeed + 1);
+  const slotOrder = shuffledSlotOrder(card.length, cardIdx*613 + regenSeed + 7);
+  card.forEach((symbolIdx, k)=>{
+    const p = packed[slotOrder[k]];
+    const img = document.createElement('img');
+    img.className='dobble-photo';
+    img.src = usedPhotos[symbolIdx];
+    img.style.width = (p.r*100)+'%';
+    img.style.height = (p.r*100)+'%';
+    img.style.left = ((p.x+1)/2*100)+'%';
+    img.style.top = ((p.y+1)/2*100)+'%';
+    img.style.transform = `translate(-50%,-50%) rotate(${p.rot}deg)`;
+    cardEl.appendChild(img);
+  });
+  return cardEl;
+}
+function buildBackCardEl(){
+  const el = document.createElement('div');
+  el.className='dobble-card dobble-card-back';
+  if(versoPhoto){
+    el.innerHTML = `<img src="${versoPhoto}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
+  } else {
+    el.innerHTML = `<div class="back-ring"></div><div class="back-label">LA FAMILLE<br>✦ DOBBLE ✦</div>`;
+  }
+  return el;
+}
+
+// ---------- Render cards ----------
+let deckGlobal = null, usedPhotosGlobal = null;
+
+function renderCards(){
+  const S = selectedTier.symbols;
+  usedPhotosGlobal = photos.filter(Boolean).slice(0,S);
+  deckGlobal = generateDeck(selectedTier.n);
+  const grid = document.getElementById('cardsGrid');
+  grid.innerHTML='';
+  deckGlobal.forEach((card, cardIdx)=>{
+    grid.appendChild(buildFrontCardEl(card, cardIdx, usedPhotosGlobal));
+  });
+  document.getElementById('deckSummary').textContent =
+    `${deckGlobal.length} cartes • ${selectedTier.perCard} photos par carte`;
+  buildPrintSheet();
+}
+
+function buildPrintSheet(){
+  const printSheet = document.getElementById('printSheet');
+  printSheet.innerHTML='';
+  if(!deckGlobal) return;
+  const includeVerso = document.getElementById('versoCheckbox').checked;
+  for(let i=0;i<deckGlobal.length;i+=6){
+    const chunk = deckGlobal.slice(i,i+6);
+
+    const frontPage = document.createElement('div');
+    frontPage.className='print-page front-page';
+    const frontGrid = document.createElement('div');
+    frontGrid.className='page-grid';
+    chunk.forEach((card,k)=> frontGrid.appendChild(buildFrontCardEl(card, i+k, usedPhotosGlobal)));
+    frontPage.appendChild(frontGrid);
+    printSheet.appendChild(frontPage);
+
+    if(includeVerso){
+      const versoPage = document.createElement('div');
+      versoPage.className='print-page verso-page';
+      const versoGrid = document.createElement('div');
+      versoGrid.className='page-grid';
+      chunk.forEach(()=> versoGrid.appendChild(buildBackCardEl()));
+      versoPage.appendChild(versoGrid);
+      printSheet.appendChild(versoPage);
+    }
+  }
+}
+
+document.getElementById('generateBtn').addEventListener('click', ()=>{
+  if(!selectedTier) return;
+  regenSeed = 0;
+  renderCards();
+  showStep(3);
+});
+document.getElementById('regenBtn').addEventListener('click', ()=>{
+  regenSeed += 1000;
+  renderCards();
+});
+document.getElementById('versoCheckbox').addEventListener('change', buildPrintSheet);
+
+function updateVersoPhotoUI(){
+  const thumbWrap = document.getElementById('versoPhotoThumbWrap');
+  const thumb = document.getElementById('versoPhotoThumb');
+  const removeBtn = document.getElementById('versoPhotoRemoveBtn');
+  const addBtn = document.getElementById('versoPhotoBtn');
+  if(versoPhoto){
+    thumb.src = versoPhoto;
+    thumbWrap.style.display = 'inline-block';
+    removeBtn.style.display = 'inline-block';
+    addBtn.textContent = 'Remplacer la photo du dos';
+  } else {
+    thumbWrap.style.display = 'none';
+    removeBtn.style.display = 'none';
+    addBtn.textContent = 'Ajouter une photo pour le dos';
+  }
+}
+document.getElementById('versoPhotoBtn').addEventListener('click', ()=> document.getElementById('versoPhotoInput').click());
+document.getElementById('versoPhotoInput').addEventListener('change', async e=>{
+  const file = e.target.files[0];
+  if(file){
+    try{
+      const { finalDataUrl } = await processImage(file);
+      versoPhoto = finalDataUrl;
+      updateVersoPhotoUI();
+      saveVersoPhotoToStorage(finalDataUrl);
+      buildPrintSheet();
+    }catch(err){ reportIssue(`Photo du dos — ${err.message}`); }
+  }
+  e.target.value = '';
+});
+document.getElementById('versoPhotoRemoveBtn').addEventListener('click', ()=>{
+  versoPhoto = null;
+  updateVersoPhotoUI();
+  deleteVersoPhotoFromStorage();
+  buildPrintSheet();
+});
+document.getElementById('printBtn').addEventListener('click', ()=> window.print());
+
+// ---------- Direct PDF export (with cut guides), independent of the browser's print dialog ----------
+function loadJsPDF(){
+  if(window.jspdf) return Promise.resolve(window.jspdf.jsPDF);
+  return new Promise((resolve, reject)=>{
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+    s.onload = () => resolve(window.jspdf.jsPDF);
+    s.onerror = () => reject(new Error('Impossible de charger la bibliothèque PDF (vérifie ta connexion internet).'));
+    document.head.appendChild(s);
+  });
+}
+function loadImageEl(src){
+  return new Promise((resolve, reject)=>{
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error('Photo illisible pendant la génération du PDF'));
+    img.src = src;
+  });
+}
+async function renderCardToCanvas(card, cardIdx, usedPhotos, px){
+  const canvas = document.createElement('canvas');
+  canvas.width = px; canvas.height = px;
+  const ctx = canvas.getContext('2d');
+  ctx.save();
+  ctx.beginPath(); ctx.arc(px/2, px/2, px/2, 0, Math.PI*2); ctx.closePath(); ctx.clip();
+  ctx.fillStyle = '#F6EFE2';
+  ctx.fillRect(0, 0, px, px);
+  const packed = packCircles(card.length, cardIdx*97 + regenSeed + 1);
+  const slotOrder = shuffledSlotOrder(card.length, cardIdx*613 + regenSeed + 7);
+  for(let k=0;k<card.length;k++){
+    const p = packed[slotOrder[k]];
+    const img = await loadImageEl(usedPhotos[card[k]]);
+    const rad = p.r*px/2;
+    const centerX = (p.x+1)/2*px, centerY = (p.y+1)/2*px;
+    ctx.save();
+    ctx.beginPath(); ctx.arc(centerX, centerY, rad, 0, Math.PI*2); ctx.closePath(); ctx.clip();
+    ctx.translate(centerX, centerY);
+    ctx.rotate(p.rot*Math.PI/180);
+    const scale = Math.max((rad*2)/img.width, (rad*2)/img.height);
+    const dw = img.width*scale, dh = img.height*scale;
+    ctx.drawImage(img, -dw/2, -dh/2, dw, dh);
+    ctx.restore();
+  }
+  ctx.restore();
+  return canvas;
+}
+async function renderBackCardToCanvas(px){
+  const canvas = document.createElement('canvas');
+  canvas.width = px; canvas.height = px;
+  const ctx = canvas.getContext('2d');
+  ctx.save();
+  ctx.beginPath(); ctx.arc(px/2, px/2, px/2, 0, Math.PI*2); ctx.closePath(); ctx.clip();
+  if(versoPhoto){
+    const img = await loadImageEl(versoPhoto);
+    const scale = Math.max(px/img.width, px/img.height);
+    const dw = img.width*scale, dh = img.height*scale;
+    ctx.drawImage(img, (px-dw)/2, (px-dh)/2, dw, dh);
+    ctx.restore();
+    return canvas;
+  }
+  ctx.fillStyle = '#0E211F';
+  ctx.fillRect(0, 0, px, px);
+  ctx.restore();
+  ctx.strokeStyle = '#E8A94D';
+  ctx.lineWidth = px*0.006;
+  ctx.setLineDash([px*0.02, px*0.015]);
+  ctx.beginPath(); ctx.arc(px/2, px/2, px*0.41, 0, Math.PI*2); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle = '#E8A94D';
+  ctx.textAlign = 'center';
+  ctx.font = `700 ${Math.round(px*0.055)}px Georgia, serif`;
+  ctx.fillText('LA FAMILLE', px/2, px/2 - px*0.02);
+  ctx.font = `700 ${Math.round(px*0.05)}px Georgia, serif`;
+  ctx.fillText('✦ DOBBLE ✦', px/2, px/2 + px*0.06);
+  return canvas;
+}
+async function exportPdf(){
+  if(!deckGlobal) return;
+  const btn = document.getElementById('pdfBtn');
+  const oldText = btn.textContent;
+  btn.disabled = true; btn.textContent = 'Génération…';
+  try{
+    const jsPDFCtor = await loadJsPDF();
+    const doc = new jsPDFCtor({ unit:'mm', format:'a4', orientation:'portrait' });
+    const pageW = 210, pageH = 297, cardMM = 90, gapX = 8, gapY = 4, px = 1100;
+    const marginX = (pageW - (cardMM*2+gapX))/2;
+    const marginY = (pageH - (cardMM*3+gapY*2))/2;
+    const includeVerso = document.getElementById('versoCheckbox').checked;
+    let firstPage = true;
+
+    const drawCutGuide = (x,y)=>{
+      doc.setDrawColor(80,80,80);
+      doc.setLineDashPattern([1.2,1], 0);
+      doc.circle(x+cardMM/2, y+cardMM/2, cardMM/2, 'S');
+      doc.setLineDashPattern([], 0);
+    };
+
+    for(let i=0;i<deckGlobal.length;i+=6){
+      const chunk = deckGlobal.slice(i,i+6);
+      if(!firstPage) doc.addPage();
+      firstPage = false;
+      for(let k=0;k<chunk.length;k++){
+        const col = k%2, row = Math.floor(k/2);
+        const x = marginX + col*(cardMM+gapX), y = marginY + row*(cardMM+gapY);
+        const canvas = await renderCardToCanvas(chunk[k], i+k, usedPhotosGlobal, px);
+        doc.addImage(canvas.toDataURL('image/jpeg', 0.95), 'JPEG', x, y, cardMM, cardMM);
+        drawCutGuide(x, y);
+      }
+      if(includeVerso){
+        doc.addPage();
+        for(let k=0;k<chunk.length;k++){
+          const mirroredCol = 1-(k%2), row = Math.floor(k/2);
+          const x = marginX + mirroredCol*(cardMM+gapX), y = marginY + row*(cardMM+gapY);
+          const canvas = await renderBackCardToCanvas(px);
+          doc.addImage(canvas.toDataURL('image/jpeg', 0.95), 'JPEG', x, y, cardMM, cardMM);
+          drawCutGuide(x, y);
+        }
+      }
+    }
+    doc.save('dobble-famille.pdf');
+  }catch(err){
+    console.error('Erreur export PDF', err);
+    reportIssue(`Export PDF impossible : ${err.message}`);
+  }finally{
+    btn.disabled = false; btn.textContent = oldText;
+  }
+}
+document.getElementById('pdfBtn').addEventListener('click', exportPdf);
+
+// ---------- Pair checker: confirm two cards share exactly one photo ----------
+document.getElementById('checkPairBtn').addEventListener('click', ()=>{
+  const el = document.getElementById('checkResult');
+  if(!deckGlobal){ return; }
+  const a = parseInt(document.getElementById('checkCardA').value, 10);
+  const b = parseInt(document.getElementById('checkCardB').value, 10);
+  if(!a || !b || a<1 || b<1 || a>deckGlobal.length || b>deckGlobal.length || a===b){
+    el.innerHTML = `<div class="dup-warning">Donne deux numéros de carte différents, entre 1 et ${deckGlobal.length}.</div>`;
+    return;
+  }
+  const cardA = deckGlobal[a-1], cardB = deckGlobal[b-1];
+  const shared = cardA.filter(s => cardB.includes(s));
+  const thumbs = shared.map(s => `<div class="check-thumb"><img src="${usedPhotosGlobal[s]}" alt=""></div>`).join('');
+  const verdict = shared.length === 1
+    ? `✓ Les cartes ${a} et ${b} partagent exactement 1 photo :`
+    : `⚠ Les cartes ${a} et ${b} partagent ${shared.length} photo(s) au lieu d'1 — signale-le moi si tu vois ça :`;
+  el.innerHTML = `<div class="dup-warning">${verdict}<div class="check-thumbs">${thumbs}</div></div>`;
+});
+
+document.getElementById('checkAllBtn').addEventListener('click', ()=>{
+  const el = document.getElementById('checkResult');
+  if(!deckGlobal || !usedPhotosGlobal){ return; }
+  const expected = deckGlobal[0].length; // symbols per card == expected appearances per photo
+  const freq = new Array(usedPhotosGlobal.length).fill(0);
+  deckGlobal.forEach(card => card.forEach(s => freq[s]++));
+  const anomalies = freq.map((c,s)=>({s,c})).filter(x => x.c !== expected);
+  if(anomalies.length === 0){
+    el.innerHTML = `<div class="dup-warning">✓ Vérification complète : chacune des ${usedPhotosGlobal.length} photos apparaît exactement ${expected} fois sur les ${deckGlobal.length} cartes, comme attendu. La répartition est correcte.</div>`;
+  } else {
+    const thumbs = anomalies.slice(0,12).map(x => `<div class="check-thumb" title="${x.c} fois"><img src="${usedPhotosGlobal[x.s]}" alt=""></div>`).join('');
+    el.innerHTML = `<div class="dup-warning">⚠ ${anomalies.length} photo(s) n'apparaissent pas le bon nombre de fois (attendu : ${expected}) :<div class="check-thumbs">${thumbs}</div></div>`;
+  }
+});
+
+// ---------- Project file: save / open (lets you resume later, on any device) ----------
+const DATA_URL_RE = /^data:image\/(?:jpeg|png|webp);base64,[A-Za-z0-9+\/=]+$/;
+function setProjectStatus(msg, isError){
+  const el = document.getElementById('projectStatus');
+  el.textContent = msg;
+  el.style.color = isError ? 'var(--coral)' : 'var(--sage)';
+}
+function saveProject(){
+  const count = photos.filter(Boolean).length;
+  if(count === 0 && !versoPhoto){
+    setProjectStatus("Rien à enregistrer pour le moment : ajoute d'abord des photos.", true);
+    return;
+  }
+  try{
+    const data = {
+      app: 'dobble-famille',
+      version: 1,
+      savedAt: new Date().toISOString(),
+      photos, photoSources, versoPhoto,
+      includeVerso: document.getElementById('versoCheckbox').checked,
+      smartCrop: document.getElementById('smartCropCheckbox').checked
+    };
+    const blob = new Blob([JSON.stringify(data)], { type:'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `dobble-famille-projet-${new Date().toISOString().slice(0,10)}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(()=> URL.revokeObjectURL(url), 15000);
+    setProjectStatus(`Projet enregistré : ${count} photo(s), ${(blob.size/1048576).toFixed(1)} Mo.`, false);
+  }catch(err){
+    console.error('Erreur enregistrement projet', err);
+    setProjectStatus('Enregistrement impossible : ' + err.message, true);
+  }
+}
+document.getElementById('saveProjectBtn').addEventListener('click', saveProject);
+
+let openConfirmTimeout = null;
+function resetOpenBtn(){
+  clearTimeout(openConfirmTimeout);
+  const btn = document.getElementById('openProjectBtn');
+  btn.dataset.confirming = 'false';
+  btn.textContent = 'Ouvrir un projet';
+  btn.classList.remove('btn-coral');
+}
+document.getElementById('openProjectBtn').addEventListener('click', ()=>{
+  const btn = document.getElementById('openProjectBtn');
+  const hasWork = photos.some(Boolean) || versoPhoto;
+  if(hasWork && btn.dataset.confirming !== 'true'){
+    btn.dataset.confirming = 'true';
+    btn.textContent = 'Remplacer le projet en cours ? Reclique';
+    btn.classList.add('btn-coral');
+    openConfirmTimeout = setTimeout(resetOpenBtn, 4000);
+    return;
+  }
+  resetOpenBtn();
+  document.getElementById('openProjectInput').click();
+});
+
+document.getElementById('openProjectInput').addEventListener('change', async e=>{
+  const file = e.target.files[0];
+  e.target.value = '';
+  if(!file) return;
+  setProjectStatus('Ouverture…', false);
+  try{
+    const data = JSON.parse(await file.text());
+    if(!data || data.app !== 'dobble-famille' || !Array.isArray(data.photos)){
+      throw new Error("ce fichier n'est pas un projet Dobble.");
+    }
+    const clean = v => (typeof v === 'string' && DATA_URL_RE.test(v)) ? v : null;
+    let rejected = 0;
+    for(let i=0;i<TOTAL_SLOTS;i++){
+      const p = clean(data.photos[i]);
+      if(data.photos[i] && !p) rejected++;
+      photos[i] = p;
+      photoSources[i] = (p && Array.isArray(data.photoSources)) ? clean(data.photoSources[i]) : null;
+      renderSlot(i);
+    }
+    versoPhoto = clean(data.versoPhoto);
+    updateVersoPhotoUI();
+    document.getElementById('versoCheckbox').checked = !!data.includeVerso;
+    if(typeof data.smartCrop === 'boolean') document.getElementById('smartCropCheckbox').checked = data.smartCrop;
+
+    // any generated deck belonged to the previous photos
+    deckGlobal = null; usedPhotosGlobal = null; selectedTier = null;
+    document.getElementById('cardsGrid').innerHTML = '';
+    document.getElementById('printSheet').innerHTML = '';
+    document.getElementById('checkResult').innerHTML = '';
+    updateCounter();
+    showStep(1);
+
+    // keep the auto-save store in sync (only exists inside Claude)
+    for(let i=0;i<TOTAL_SLOTS;i++){
+      if(photos[i]){
+        savePhotoToStorage(i, photos[i]);
+        if(photoSources[i]) saveSourceToStorage(i, photoSources[i]);
+      } else {
+        deletePhotoFromStorage(i);
+      }
+    }
+    if(versoPhoto) saveVersoPhotoToStorage(versoPhoto); else deleteVersoPhotoFromStorage();
+
+    const count = photos.filter(Boolean).length;
+    setProjectStatus(
+      `Projet ouvert : ${count} photo(s).` + (rejected ? ` ${rejected} image(s) illisible(s) ignorée(s).` : ''),
+      rejected > 0
+    );
+  }catch(err){
+    console.error('Erreur ouverture projet', err);
+    const msg = (err instanceof SyntaxError) ? 'fichier illisible ou corrompu.' : err.message;
+    setProjectStatus('Ouverture impossible : ' + msg, true);
+  }
+});
+</script>
+</body>
+</html>
